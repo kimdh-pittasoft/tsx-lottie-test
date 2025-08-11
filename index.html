@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lottie Assets Viewer - Final</title>
+    
+    <script type="importmap">
+{
+    "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lottie-react": "https://esm.sh/lottie-react@2.4.0?external=react,react-dom",
+        
+        "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+        "my-lottie-icons": "https://unpkg.com/my-lottie-icons@0.1.2/dist/index.mjs"
+    }
+}
+</script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 2rem; background-color: #f4f7f9; }
+        .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        h1 { text-align: center; border-bottom: 2px solid #eee; padding-bottom: 1rem; margin-bottom: 1rem; }
+        .search-bar {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 2rem auto;
+            display: block;
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            outline-offset: 2px;
+            transition: border-color 0.3s ease;
+        }
+        .search-bar:focus {
+            border-color: #0078d4;
+            box-shadow: 0 0 5px rgba(0,120,212,0.5);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill,minmax(180px,1fr));
+            gap: 1.5rem;
+        }
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: default;
+            user-select: none;
+            transition: box-shadow 0.3s ease;
+            position: relative;
+            overflow: visible;
+        }
+        .card:hover {
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+        }
+        .animation-container {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 0.75rem;
+            pointer-events: auto;
+            position: relative;
+            z-index: 1;
+        }
+        .animation-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #0078d4;
+            text-align: center;
+            cursor: pointer;
+            user-select: text;
+            word-break: break-word;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+        }
+        .animation-name:hover {
+            background-color: #e6f0fa;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 9999;
+        }
+        .toast.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            color: #fff;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            user-select: none;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .badge.android {
+            background-color: #3ddc84;
+            color: #fff;
+        }
+        .badge.ios {
+            background-color: #121216;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="module">
+        import React from 'react';
+        import ReactDOM from 'react-dom/client';
+        import Lottie from 'lottie-react';
+        import * as AllLottieComponents from 'my-lottie-icons';
+
+        const ANDROID_NAMES = new Set([
+            'InfoBlackvueLightAndroidWifiConnectManuallyLottie',
+            'InfoBlackvueLightAndroidWifiDisconnectManuallyLottie',
+        ]);
+        const IOS_NAMES = new Set([
+            'InfoBlackvueLightIosWifiConnectManuallyLottie',
+            'InfoBlackvueLightIosWifiDisconnectManuallyLottie',
+        ]);
+
+        function Toast({ message, show }) {
+            return React.createElement(
+                'div',
+                { className: 'toast' + (show ? ' show' : '') },
+                message
+            );
+        }
+
+        function Card({ name, Component, onCopy }) {
+            const lottieRef = React.useRef(null);
+
+            // Play animation on hover/touchstart, pause and reset on mouseleave/touchend
+            const handlePlay = () => {
+                if (lottieRef.current) {
+                    lottieRef.current.play();
+                }
+            };
+            const handlePauseReset = () => {
+                if (lottieRef.current) {
+                    lottieRef.current.pause();
+                    lottieRef.current.goToAndStop(0, true);
+                }
+            };
+
+            // For touch devices, to prevent triggering mouse events after touch:
+            const touchTimeoutRef = React.useRef(null);
+            const handleTouchStart = () => {
+                if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
+                handlePlay();
+            };
+            const handleTouchEnd = () => {
+                touchTimeoutRef.current = setTimeout(() => {
+                    handlePauseReset();
+                }, 100);
+            };
+
+            const isDark = name.toLowerCase().includes('dark');
+            let platform = null;
+            if (ANDROID_NAMES.has(name)) platform = 'android';
+            else if (IOS_NAMES.has(name)) platform = 'ios';
+
+            return React.createElement(
+                'div',
+                { className: 'card' },
+                platform === 'android' && React.createElement('div', { className: 'badge android' }, 'Android'),
+                platform === 'ios' && React.createElement('div', { className: 'badge ios' }, 'iOS'),
+                React.createElement(
+                    'div',
+                    {
+                        className: 'animation-container',
+                        onMouseEnter: handlePlay,
+                        onMouseLeave: handlePauseReset,
+                        onTouchStart: handleTouchStart,
+                        onTouchEnd: handleTouchEnd,
+                        style: { backgroundColor: isDark ? '#121216' : undefined }
+                    },
+                    React.createElement(Component, { lottieRef: lottieRef, autoplay: false, loop: true, style: { width: '150px', height: '150px' } })
+                ),
+                React.createElement(
+                    'div',
+                    {
+                        className: 'animation-name',
+                        onClick: () => onCopy(name),
+                        title: '클릭하여 이름 복사',
+                        tabIndex: 0,
+                        onKeyDown: (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                onCopy(name);
+                            }
+                        }
+                    },
+                    name
+                )
+            );
+        }
+
+        function App() {
+            const allNames = React.useMemo(() => Object.keys(AllLottieComponents), []);
+            const [searchTerm, setSearchTerm] = React.useState('');
+            const [toastVisible, setToastVisible] = React.useState(false);
+            const [toastMessage, setToastMessage] = React.useState('');
+
+            const filteredNames = React.useMemo(() => {
+                const lowerSearch = searchTerm.toLowerCase();
+                return allNames.filter(name => name.toLowerCase().includes(lowerSearch));
+            }, [searchTerm, allNames]);
+
+            const handleCopy = (text) => {
+                navigator.clipboard.writeText(text).then(() => {
+                    setToastMessage(`"${text}" 복사됨`);
+                    setToastVisible(true);
+                    setTimeout(() => setToastVisible(false), 2000);
+                }).catch(() => {
+                    setToastMessage('복사에 실패했습니다');
+                    setToastVisible(true);
+                    setTimeout(() => setToastVisible(false), 2000);
+                });
+            };
+
+            return React.createElement(
+                'div',
+                { className: 'container' },
+                React.createElement('h1', null, 'Lottie 아이콘 라이브러리'),
+                React.createElement('input', {
+                    type: 'search',
+                    className: 'search-bar',
+                    placeholder: '애니메이션 이름 검색...',
+                    value: searchTerm,
+                    onChange: e => setSearchTerm(e.target.value),
+                    'aria-label': '애니메이션 이름 검색'
+                }),
+                React.createElement(
+                    'div',
+                    { className: 'grid' },
+                    filteredNames.map(name => {
+                        const Component = AllLottieComponents[name];
+                        return React.createElement(Card, { key: name, name, Component, onCopy: handleCopy });
+                    })
+                ),
+                React.createElement(Toast, { message: toastMessage, show: toastVisible })
+            );
+        }
+
+        const rootElement = document.getElementById('root');
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
